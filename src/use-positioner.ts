@@ -25,6 +25,7 @@ export function usePositioner(
     rowGutter,
     columnCount,
     maxColumnCount,
+    precomputedSizes
   }: UsePositionerOptions,
   deps: React.DependencyList = emptyArr
 ): Positioner {
@@ -40,7 +41,8 @@ export function usePositioner(
       computedColumnCount,
       computedColumnWidth,
       columnGutter,
-      rowGutter ?? columnGutter
+      rowGutter ?? columnGutter,
+      precomputedSizes ?? []
     );
   };
   const positionerRef = React.useRef<Positioner>();
@@ -127,6 +129,10 @@ export interface UsePositionerOptions {
    * The upper bound of column count. This property won't work if `columnCount` is set.
    */
   maxColumnCount?: number;
+  /**
+   * Precomputed sizes of divs to skip the first flash of unpositioned divs.
+   */
+  precomputedSizes?: number[][];
 }
 
 /**
@@ -143,7 +149,8 @@ export const createPositioner = (
   columnCount: number,
   columnWidth: number,
   columnGutter = 0,
-  rowGutter = columnGutter
+  rowGutter = columnGutter,
+  precomputedSizes: number[][], // hacky addition to make the first row items size correctly on first render
 ): Positioner => {
   // O(log(n)) lookup of cells to render for a given viewport size
   // Store tops and bottoms of each cell for fast intersection lookup.
@@ -173,6 +180,14 @@ export const createPositioner = (
       }
 
       const top = columnHeights[column] || 0;
+
+      // This is the hacky solution to the first few rows not sizing correclty on first render
+      if (index < precomputedSizes.length) {
+        const imgHeight = precomputedSizes[index][0] || 0;
+        const imgWidth = precomputedSizes[index][1] || 0;
+        height = imgHeight * (columnWidth / imgWidth) || 0
+      }
+
       columnHeights[column] = top + height + rowGutter;
       columnItems[column].push(index);
       items[index] = {
